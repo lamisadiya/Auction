@@ -1,0 +1,1434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ElectroBid - Premium Electronics Auction</title>
+  <script src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/socket.io-client@4.5.4/dist/socket.io.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      background: linear-gradient(to bottom, #e0f2fe, #f3f4f6);
+    }
+    .card-hover:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+    }
+    .btn-gradient {
+      background: linear-gradient(to right, #3b82f6, #1d4ed8);
+    }
+    .btn-gradient:hover {
+      background: linear-gradient(to right, #1d4ed8, #3b82f6);
+    }
+    .notification {
+      animation: slideIn 0.5s ease-out;
+    }
+    @keyframes slideIn {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+    .ended-card {
+      filter: grayscale(50%);
+      opacity: 0.9;
+    }
+    .featured-card, .testimonial-card, .feature-card, .upcoming-card {
+      animation: fadeIn 1s ease-in;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    .hero-bg {
+      background: linear-gradient(to right, #3b82f6, #1d4ed8);
+      animation: gradientShift 10s ease infinite;
+    }
+    @keyframes gradientShift {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/javascript">
+    const { useState, useEffect } = React;
+
+    const initialItems = [
+      {
+        id: 1,
+        name: "Smartphone X12 Pro",
+        description: "5G smartphone, 256GB storage, 6.7\" AMOLED, triple 48MP camera",
+        category: "Phones",
+        startingBid: 350.00,
+        reservePrice: 400.00,
+        buyNowPrice: 480.00,
+        currentBid: 399.99,
+        endTime: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        bidHistory: [],
+        status: "active",
+        image: "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80"
+      },
+      {
+        id: 2,
+        name: "4K OLED Smart TV",
+        description: "65\" Ultra HD, HDR10+, Dolby Vision, 120Hz, built-in Alexa",
+        category: "TVs",
+        startingBid: 900.00,
+        reservePrice: 950.00,
+        buyNowPrice: 1140.00,
+        currentBid: 999.99,
+        endTime: new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString(),
+        bidHistory: [],
+        status: "active",
+        image: "https://images.unsplash.com/photo-1593359677774-9107d3e8e3a7?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80"
+      },
+      {
+        id: 3,
+        name: "Wireless ANC Headphones",
+        description: "Over-ear, 30-hour battery, active noise cancellation, Bluetooth 5.2",
+        category: "Audio",
+        startingBid: 150.00,
+        reservePrice: 180.00,
+        buyNowPrice: 216.00,
+        currentBid: 199.99,
+        endTime: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(),
+        bidHistory: [],
+        status: "active",
+        image: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80"
+      },
+      {
+        id: 4,
+        name: "UltraBook Pro 14",
+        description: "14\" 2.8K display, Intel i7, 16GB RAM, 512GB SSD, 18-hour battery",
+        category: "Laptops",
+        startingBid: 800.00,
+        reservePrice: 900.00,
+        buyNowPrice: 1080.00,
+        currentBid: 850.00,
+        endTime: new Date(Date.now() + 36 * 60 * 60 * 1000).toISOString(),
+        bidHistory: [],
+        status: "active",
+        image: "https://images.unsplash.com/photo-1611078489935-0cb964de46d6?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80"
+      },
+      {
+        id: 5,
+        name: "Smartwatch Series 7",
+        description: "1.9\" Retina display, heart rate monitor, GPS, water-resistant",
+        category: "Wearables",
+        startingBid: 200.00,
+        reservePrice: 250.00,
+        buyNowPrice: 300.00,
+        currentBid: 220.00,
+        endTime: new Date(Date.now() + 18 * 60 * 60 * 1000).toISOString(),
+        bidHistory: [],
+        status: "active",
+        image: "https://images.unsplash.com/photo-1546868871-7041f2a55e12?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80"
+      },
+      {
+        id: 6,
+        name: "Gaming Console X",
+        description: "4K gaming, 1TB SSD, ray tracing, 120FPS support",
+        category: "Consoles",
+        startingBid: 400.00,
+        reservePrice: 450.00,
+        buyNowPrice: 540.00,
+        currentBid: 420.00,
+        endTime: new Date(Date.now() + 30 * 60 * 60 * 1000).toISOString(),
+        bidHistory: [],
+        status: "active",
+        image: "https://images.unsplash.com/photo-1622290494970-f3603f6b4b31?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80"
+      },
+      {
+        id: 7,
+        name: "Wireless Earbuds Pro",
+        description: "True wireless, 24-hour battery, IPX7 waterproof, touch controls",
+        category: "Audio",
+        startingBid: 100.00,
+        reservePrice: 120.00,
+        buyNowPrice: 144.00,
+        currentBid: 110.00,
+        endTime: new Date(Date.now() + 15 * 60 * 60 * 1000).toISOString(),
+        bidHistory: [],
+        status: "active",
+        image: "https://images.unsplash.com/photo-1590658268037-6bf12165a8df?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80"
+      },
+      {
+        id: 8,
+        name: "Drone Quadcopter 4K",
+        description: "4K camera, 30-min flight time, GPS, obstacle avoidance",
+        category: "Drones",
+        startingBid: 300.00,
+        reservePrice: 350.00,
+        buyNowPrice: 420.00,
+        currentBid: 320.00,
+        endTime: new Date(Date.now() + 20 * 60 * 60 * 1000).toISOString(),
+        bidHistory: [],
+        status: "active",
+        image: "https://images.unsplash.com/photo-1506947411487-a56738267384?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80"
+      },
+      {
+        id: 9,
+        name: "Smart Home Hub",
+        description: "Voice-controlled, Zigbee/Z-Wave, supports 100+ devices",
+        category: "Smart Home",
+        startingBid: 80.00,
+        reservePrice: 100.00,
+        buyNowPrice: 120.00,
+        currentBid: 90.00,
+        endTime: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
+        bidHistory: [],
+        status: "ended",
+        image: "https://images.unsplash.com/photo-1570737207350-5168f45f9a77?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80"
+      },
+      {
+        id: 10,
+        name: "VR Headset Pro",
+        description: "4K OLED display, 110° FOV, wireless PC streaming, 6DOF",
+        category: "VR",
+        startingBid: 500.00,
+        reservePrice: 550.00,
+        buyNowPrice: 660.00,
+        currentBid: 520.00,
+        endTime: new Date(Date.now() + 25 * 60 * 60 * 1000).toISOString(),
+        bidHistory: [],
+        status: "active",
+        image: "https://images.unsplash.com/photo-1593508512255-86ab42a8e620?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80"
+      },
+      {
+        id: 11,
+        name: "Tablet Pro 12",
+        description: "12.9\" Liquid Retina, M2 chip, 512GB storage, Apple Pencil support",
+        category: "Tablets",
+        startingBid: 600.00,
+        reservePrice: 700.00,
+        buyNowPrice: 840.00,
+        currentBid: 600.00,
+        startTime: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString(),
+        endTime: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
+        bidHistory: [],
+        status: "upcoming",
+        image: "https://images.unsplash.com/photo-1561154464-82e9adf32764?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80"
+      },
+      {
+        id: 12,
+        name: "Mirrorless Camera Z9",
+        description: "45.7MP, 8K video, 20FPS, advanced autofocus, weather-sealed",
+        category: "Cameras",
+        startingBid: 1200.00,
+        reservePrice: 1400.00,
+        buyNowPrice: 1680.00,
+        currentBid: 1200.00,
+        startTime: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
+        endTime: new Date(Date.now() + 4 * 24 * 60 * 60 * 1000).toISOString(),
+        bidHistory: [],
+        status: "upcoming",
+        image: "https://images.unsplash.com/photo-1519638831568-d9897f54ab68?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80"
+      },
+      {
+        id: 13,
+        name: "Smart Thermostat V3",
+        description: "Wi-Fi enabled, energy-saving, voice control, 7-day scheduling",
+        category: "Smart Home",
+        startingBid: 90.00,
+        reservePrice: 110.00,
+        buyNowPrice: 132.00,
+        currentBid: 90.00,
+        startTime: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
+        endTime: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
+        bidHistory: [],
+        status: "upcoming",
+        image: "https://images.unsplash.com/photo-1612469448342-8c0434f94831?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80"
+      }
+    ];
+
+    function Timer({ endTime }) {
+      const [timeLeft, setTimeLeft] = useState('');
+
+      useEffect(() => {
+        const updateTimer = () => {
+          const now = new Date();
+          const end = new Date(endTime);
+          const diff = end - now;
+          if (diff <= 0) {
+            setTimeLeft('Ended');
+            return;
+          }
+          const hours = Math.floor(diff / (1000 * 60 * 60));
+          const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+          const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+          setTimeLeft(`${hours}h ${minutes}m ${seconds}s`);
+        };
+        updateTimer();
+        const interval = setInterval(updateTimer, 1000);
+        return () => clearInterval(interval);
+      }, [endTime]);
+
+      return React.createElement('span', { className: 'text-red-600 font-bold' }, timeLeft);
+    }
+
+    function CountdownTimer({ startTime }) {
+      const [timeLeft, setTimeLeft] = useState('');
+
+      useEffect(() => {
+        const updateTimer = () => {
+          const now = new Date();
+          const start = new Date(startTime);
+          const diff = start - now;
+          if (diff <= 0) {
+            setTimeLeft('Started');
+            return;
+          }
+          const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+          const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+          const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+          const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+          setTimeLeft(`${days}d ${hours}h ${minutes}m ${seconds}s`);
+        };
+        updateTimer();
+        const interval = setInterval(updateTimer, 1000);
+        return () => clearInterval(interval);
+      }, [startTime]);
+
+      return React.createElement('span', { className: 'text-green-600 font-bold' }, timeLeft);
+    }
+
+    function App() {
+      const [items, setItems] = useState(initialItems);
+      const [user, setUser] = useState(null);
+      const [bidAmount, setBidAmount] = useState({});
+      const [autoBid, setAutoBid] = useState({});
+      const [socket, setSocket] = useState(null);
+      const [showAuthModal, setShowAuthModal] = useState(false);
+      const [isLogin, setIsLogin] = useState(true);
+      const [authData, setAuthData] = useState({ username: '', password: '', email: '' });
+      const [notifications, setNotifications] = useState([]);
+      const [activeTab, setActiveTab] = useState('active');
+      const [categoryFilter, setCategoryFilter] = useState('All');
+      const [showProfile, setShowProfile] = useState(false);
+      const [userBids, setUserBids] = useState([]);
+      const [userWon, setUserWon] = useState([]);
+      const [newsletterEmail, setNewsletterEmail] = useState('');
+      const [searchTerm, setSearchTerm] = useState('');
+      const [sortOption, setSortOption] = useState('default');
+      const [taglineIndex, setTaglineIndex] = useState(0);
+
+      const taglines = ["Bid Smart", "Win Big", "Tech Treasures Await"];
+      const categories = ['All', ...new Set(initialItems.map(item => item.category))];
+
+      useEffect(() => {
+        const socketIo = io('http://localhost:3000');
+        setSocket(socketIo);
+
+        socketIo.on('bidUpdate', (updatedItem) => {
+          setItems((prevItems) =>
+            prevItems.map((item) =>
+              item.id === updatedItem.id ? { ...updatedItem } : item
+            )
+          );
+        });
+
+        socketIo.on('notification', ({ message, userId }) => {
+          if (user && user.id === userId) {
+            setNotifications((prev) => [...prev, message]);
+            setTimeout(() => {
+              setNotifications((prev) => prev.slice(1));
+            }, 5000);
+          }
+        });
+
+        socketIo.on('auctionEnded', (endedItem) => {
+          setItems((prevItems) =>
+            prevItems.map((item) =>
+              item.id === endedItem.id ? { ...endedItem } : item
+            )
+          );
+        });
+
+        const token = localStorage.getItem('token');
+        if (token) {
+          fetch('http://localhost:3000/api/auth/verify', {
+            headers: { 'Authorization': `Bearer ${token}` }
+          })
+            .then(res => res.json())
+            .then(data => {
+              if (data.user) {
+                setUser(data.user);
+                fetch('http://localhost:3000/api/user/bids', {
+                  headers: { 'Authorization': `Bearer ${token}` }
+                })
+                  .then(res => res.json())
+                  .then(data => {
+                    setUserBids(data.bids);
+                    setUserWon(data.won);
+                  });
+              }
+            });
+        }
+
+        const taglineInterval = setInterval(() => {
+          setTaglineIndex((prev) => (prev + 1) % taglines.length);
+        }, 5000);
+
+        return () => {
+          socketIo.disconnect();
+          clearInterval(taglineInterval);
+        };
+      }, []);
+
+      const handleAuth = async () => {
+        const endpoint = isLogin ? '/api/auth/login' : '/api/auth/register';
+        try {
+          const res = await fetch(`http://localhost:3000${endpoint}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(authData)
+          });
+          const data = await res.json();
+          if (data.token) {
+            localStorage.setItem('token', data.token);
+            setUser(data.user);
+            setShowAuthModal(false);
+            setAuthData({ username: '', password: '', email: '' });
+          } else {
+            alert(data.message || 'Authentication failed');
+          }
+        } catch (error) {
+          alert('Error during authentication');
+        }
+      };
+
+      const handleLogout = () => {
+        localStorage.removeItem('token');
+        setUser(null);
+        setUserBids([]);
+        setUserWon([]);
+      };
+
+      const handleManualBid = (itemId) => {
+        if (!user) {
+          setShowAuthModal(true);
+          return;
+        }
+        const amount = parseFloat(bidAmount[itemId] || 0);
+        const item = items.find((i) => i.id === itemId);
+        if (amount <= item.currentBid) {
+          alert("Your bid must be higher than the current bid!");
+          return;
+        }
+        socket.emit('placeBid', { itemId, bid: amount, userId: user.id, username: user.username });
+        setBidAmount({ ...bidAmount, [itemId]: '' });
+      };
+
+      const handleAutoBid = (itemId) => {
+        if (!user) {
+          setShowAuthModal(true);
+          return;
+        }
+        const maxBid = parseFloat(autoBid[itemId] || 0);
+        const item = items.find((i) => i.id === itemId);
+        if (maxBid <= item.currentBid) {
+          alert("Your max auto-bid must be higher than the current bid!");
+          return;
+        }
+        socket.emit('setAutoBid', { itemId, maxBid, userId: user.id, username: user.username });
+        setAutoBid({ ...autoBid, [itemId]: '' });
+      };
+
+      const handleBuyNow = (itemId) => {
+        if (!user) {
+          setShowAuthModal(true);
+          return;
+        }
+        const item = items.find((i) => i.id === itemId);
+        socket.emit('buyNow', { itemId, userId: user.id, username: user.username });
+      };
+
+      const handleNewsletterSubmit = () => {
+        if (!newsletterEmail) {
+          alert('Please enter a valid email address.');
+          return;
+        }
+        alert(`Subscribed with ${newsletterEmail}! (Note: This is a placeholder action.)`);
+        setNewsletterEmail('');
+      };
+
+      const scrollToItem = (itemId) => {
+        const element = document.getElementById(`item-${itemId}`);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth' });
+        }
+      };
+
+      const filteredItems = items
+        .filter(item => item.status === activeTab && (categoryFilter === 'All' || item.category === categoryFilter))
+        .filter(item => 
+          item.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+          item.description.toLowerCase().includes(searchTerm.toLowerCase())
+        )
+        .sort((a, b) => {
+          if (sortOption === 'bid') return a.currentBid - b.currentBid;
+          if (sortOption === 'endTime') return new Date(a.endTime) - new Date(b.endTime);
+          return a.id - b.id;
+        });
+
+      const featuredItems = items
+        .filter(item => item.status === 'active')
+        .sort((a, b) => b.currentBid - a.currentBid)
+        .slice(0, 3);
+
+      const upcomingItems = items
+        .filter(item => item.status === 'upcoming')
+        .sort((a, b) => new Date(a.startTime) - new Date(b.startTime))
+        .slice(0, 3);
+
+      const recentlyEndedItems = items
+        .filter(item => item.status === 'ended')
+        .sort((a, b) => new Date(b.endTime) - new Date(a.endTime))
+        .slice(0, 3);
+
+      const testimonials = [
+        {
+          id: 1,
+          name: "Sarah Johnson",
+          quote: "ElectroBid made it so easy to snag a premium smartphone at a steal! The real-time bidding is thrilling!",
+          rating: 5
+        },
+        {
+          id: 2,
+          name: "Mark Thompson",
+          quote: "Secure and seamless. I love the auto-bidding feature and the wide range of electronics available.",
+          rating: 4
+        },
+        {
+          id: 3,
+          name: "Emily Chen",
+          quote: "Fantastic platform! I won a 4K TV and the process was smooth from start to finish.",
+          rating: 5
+        }
+      ];
+
+      return React.createElement(
+        'div',
+        { className: 'min-h-screen flex flex-col' },
+        [
+          // Header
+          React.createElement(
+            'header',
+            { className: 'bg-gradient-to-r from-blue-700 to-indigo-800 text-white p-6 shadow-lg' },
+            React.createElement(
+              'div',
+              { className: 'container mx-auto flex justify-between items-center' },
+              [
+                React.createElement('h1', { className: 'text-3xl font-extrabold tracking-tight' }, 'ElectroBid'),
+                React.createElement(
+                  'div',
+                  { className: 'flex items-center space-x-4' },
+                  user
+                    ? React.createElement(
+                        'div',
+                        { className: 'flex items-center space-x-2' },
+                        [
+                          React.createElement(
+                            'button',
+                            {
+                              onClick: () => setShowProfile(true),
+                              className: 'text-lg text-white hover:underline'
+                            },
+                            user.username
+                          ),
+                          React.createElement(
+                            'button',
+                            {
+                              onClick: handleLogout,
+                              className: 'btn-gradient text-white px-4 py-2 rounded-full text-sm font-medium'
+                            },
+                            'Log Out'
+                          )
+                        ]
+                      )
+                    : React.createElement(
+                        'button',
+                        {
+                          onClick: () => setShowAuthModal(true),
+                          className: 'btn-gradient text-white px-6 py-2 rounded-full font-medium'
+                        },
+                        'Log In / Register'
+                      )
+                )
+              ]
+            )
+          ),
+
+          // Notifications
+          React.createElement(
+            'div',
+            { className: 'fixed top-4 right-4 space-y-2 z-50' },
+            notifications.map((msg, idx) =>
+              React.createElement(
+                'div',
+                {
+                  key: idx,
+                  className: 'notification bg-yellow-500 text-white p-4 rounded-lg shadow-lg'
+                },
+                msg
+              )
+            )
+          ),
+
+          // Auth Modal
+          showAuthModal &&
+            React.createElement(
+              'div',
+              { className: 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center' },
+              React.createElement(
+                'div',
+                { className: 'bg-white p-6 rounded-lg shadow-lg w-full max-w-md' },
+                [
+                  React.createElement('h2', { className: 'text-2xl font-bold mb-4' }, isLogin ? 'Log In' : 'Register'),
+                  React.createElement(
+                    'div',
+                    { className: 'space-y-4' },
+                    [
+                      React.createElement('input', {
+                        type: 'text',
+                        placeholder: 'Username',
+                        value: authData.username,
+                        onChange: (e) => setAuthData({ ...authData, username: e.target.value }),
+                        className: 'w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500'
+                      }),
+                      !isLogin &&
+                        React.createElement('input', {
+                          type: 'email',
+                          placeholder: 'Email',
+                          value: authData.email,
+                          onChange: (e) => setAuthData({ ...authData, email: e.target.value }),
+                          className: 'w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500'
+                        }),
+                      React.createElement('input', {
+                        type: 'password',
+                        placeholder: 'Password',
+                        value: authData.password,
+                        onChange: (e) => setAuthData({ ...authData, password: e.target.value }),
+                        className: 'w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500'
+                      }),
+                      React.createElement(
+                        'div',
+                        { className: 'flex justify-between' },
+                        [
+                          React.createElement(
+                            'button',
+                            {
+                              onClick: handleAuth,
+                              className: 'btn-gradient text-white px-6 py-3 rounded-lg font-medium'
+                            },
+                            isLogin ? 'Log In' : 'Register'
+                          ),
+                          React.createElement(
+                            'button',
+                            {
+                              onClick: () => setIsLogin(!isLogin),
+                              className: 'text-blue-600 hover:underline'
+                            },
+                            isLogin ? 'Need an account? Register' : 'Have an account? Log In'
+                          )
+                        ]
+                      ),
+                      React.createElement(
+                        'button',
+                        {
+                          onClick: () => setShowAuthModal(false),
+                          className: 'text-gray-600 hover:underline mt-2'
+                        },
+                        'Cancel'
+                      )
+                    ]
+                  )
+                ]
+              )
+            ),
+
+          // Profile Modal
+          showProfile &&
+            React.createElement(
+              'div',
+              { className: 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center' },
+              React.createElement(
+                'div',
+                { className: 'bg-white p-6 rounded-lg shadow-lg w-full max-w-lg' },
+                [
+                  React.createElement('h2', { className: 'text-2xl font-bold mb-4' }, `Profile: ${user.username}`),
+                  React.createElement(
+                    'div',
+                    { className: 'space-y-4' },
+                    [
+                      React.createElement('h3', { className: 'text-lg font-semibold' }, 'Your Bids'),
+                      React.createElement(
+                        'ul',
+                        { className: 'text-sm text-gray-600 max-h-48 overflow-y-auto' },
+                        userBids.length
+                          ? userBids.map((bid, idx) =>
+                              React.createElement(
+                                'li',
+                                { key: idx },
+                                `Bid $${bid.amount.toFixed(2)} on ${bid.itemName} at ${new Date(bid.time).toLocaleString()}`
+                              )
+                            )
+                          : React.createElement('li', null, 'No bids placed yet.')
+                      ),
+                      React.createElement('h3', { className: 'text-lg font-semibold' }, 'Won Auctions'),
+                      React.createElement(
+                        'ul',
+                        { className: 'text-sm text-gray-600 max-h-48 overflow-y-auto' },
+                        userWon.length
+                          ? userWon.map((item, idx) =>
+                              React.createElement(
+                                'li',
+                                { key: idx },
+                                `Won ${item.name} for $${item.currentBid.toFixed(2)} at ${new Date(item.endTime).toLocaleString()}`
+                              )
+                            )
+                          : React.createElement('li', null, 'No auctions won yet.')
+                      ),
+                      React.createElement(
+                        'button',
+                        {
+                          onClick: () => setShowProfile(false),
+                          className: 'btn-gradient text-white px-6 py-3 rounded-lg font-medium'
+                        },
+                        'Close'
+                      )
+                    ]
+                  )
+                ]
+              )
+            ),
+
+          // Hero Section
+          React.createElement(
+            'section',
+            { className: 'hero-bg text-white py-16' },
+            React.createElement(
+              'div',
+              { className: 'container mx-auto px-6 flex flex-col md:flex-row items-center' },
+              [
+                React.createElement(
+                  'div',
+                  { className: 'md:w-1/2 text-center md:text-left' },
+                  [
+                    React.createElement('h1', { className: 'text-5xl font-extrabold mb-4' }, 'Discover Premium Electronics Auctions'),
+                    React.createElement(
+                      'p',
+                      { className: 'text-2xl mb-6 transition-opacity duration-1000', key: taglineIndex },
+                      taglines[taglineIndex]
+                    ),
+                    React.createElement(
+                      'button',
+                      {
+                        onClick: () => document.querySelector('main').scrollIntoView({ behavior: 'smooth' }),
+                        className: 'btn-gradient text-white px-8 py-4 rounded-full text-lg font-medium'
+                      },
+                      'Start Bidding Now'
+                    )
+                  ]
+                ),
+                React.createElement(
+                  'div',
+                  { className: 'md:w-1/2 mt-8 md:mt-0' },
+                  React.createElement('img', {
+                    src: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80',
+                    alt: 'Premium Electronics',
+                    className: 'w-full h-64 object-cover rounded-lg shadow-lg'
+                  })
+                )
+              ]
+            )
+          ),
+
+          // Featured Auctions Section
+          featuredItems.length > 0 &&
+            React.createElement(
+              'section',
+              { className: 'container mx-auto px-6 py-8 flex justify-center items-center' },
+              React.createElement(
+                'div',
+                { className: 'w-full max-w-5xl' },
+                [
+                  React.createElement('h3', { className: 'text-2xl font-bold text-gray-800 mb-4 text-center' }, 'Featured Auctions'),
+                  React.createElement(
+                    'div',
+                    { className: 'flex overflow-x-auto space-x-4' },
+                    featuredItems.map((item) =>
+                      React.createElement(
+                        'div',
+                        {
+                          key: item.id,
+                          className: 'featured-card bg-white rounded-lg shadow-md p-4 w-72 flex-shrink-0 cursor-pointer card-hover',
+                          onClick: () => scrollToItem(item.id)
+                        },
+                        [
+                          React.createElement('img', {
+                            src: item.image,
+                            alt: item.name,
+                            className: 'w-full h-32 object-cover rounded-md mb-2'
+                          }),
+                          React.createElement('h4', { className: 'text-lg font-semibold text-gray-800 truncate' }, item.name),
+                          React.createElement(
+                            'p',
+                            { className: 'text-sm text-blue-600 font-bold' },
+                            `Current Bid: $${item.currentBid.toFixed(2)}`
+                          ),
+                          React.createElement(
+                            'p',
+                            { className: 'text-sm text-gray-600' },
+                            ['Ends in: ', React.createElement(Timer, { endTime: item.endTime })]
+                          )
+                        ]
+                      )
+                    )
+                  )
+                ]
+              )
+            ),
+
+          // Upcoming Auctions Section
+          upcomingItems.length > 0 &&
+            React.createElement(
+              'section',
+              { className: 'container mx-auto px-6 py-8 flex justify-center items-center' },
+              React.createElement(
+                'div',
+                { className: 'w-full max-w-5xl' },
+                [
+                  React.createElement('h3', { className: 'text-2xl font-bold text-gray-800 mb-4 text-center' }, 'Upcoming Auctions'),
+                  React.createElement(
+                    'div',
+                    { className: 'flex overflow-x-auto space-x-4' },
+                    upcomingItems.map((item) =>
+                      React.createElement(
+                        'div',
+                        {
+                          key: item.id,
+                          className: 'upcoming-card bg-white rounded-lg shadow-md p-4 w-72 flex-shrink-0 cursor-pointer card-hover',
+                          onClick: () => alert(`View details for ${item.name} (placeholder)!`)
+                        },
+                        [
+                          React.createElement('img', {
+                            src: item.image,
+                            alt: item.name,
+                            className: 'w-full h-32 object-cover rounded-md mb-2'
+                          }),
+                          React.createElement('h4', { className: 'text-lg font-semibold text-gray-800 truncate' }, item.name),
+                          React.createElement(
+                            'p',
+                            { className: 'text-sm text-blue-600 font-bold' },
+                            `Starting Bid: $${item.startingBid.toFixed(2)}`
+                          ),
+                          React.createElement(
+                            'p',
+                            { className: 'text-sm text-gray-600' },
+                            ['Starts in: ', React.createElement(CountdownTimer, { startTime: item.startTime })]
+                          )
+                        ]
+                      )
+                    )
+                  )
+                ]
+              )
+            ),
+
+          // Testimonials Section
+          React.createElement(
+            'section',
+            { className: 'bg-gray-100 py-12' },
+            React.createElement(
+              'div',
+              { className: 'container mx-auto px-6' },
+              [
+                React.createElement('h3', { className: 'text-2xl font-bold text-gray-800 mb-6 text-center' }, 'What Our Users Say'),
+                React.createElement(
+                  'div',
+                  { className: 'flex flex-col md:flex-row space-y-6 md:space-y-0 md:space-x-6' },
+                  testimonials.map((testimonial) =>
+                    React.createElement(
+                      'div',
+                      {
+                        key: testimonial.id,
+                        className: 'testimonial-card bg-white rounded-lg shadow-md p-6 flex-1 card-hover cursor-pointer',
+                        onClick: () => alert('Read more about user experiences (placeholder)!')
+                      },
+                      [
+                        React.createElement(
+                          'div',
+                          { className: 'flex items-center mb-4' },
+                          [...Array(testimonial.rating)].map((_, i) =>
+                            React.createElement(
+                              'svg',
+                              {
+                                key: i,
+                                className: 'w-5 h-5 text-yellow-400',
+                                fill: 'currentColor',
+                                viewBox: '0 0 20 20'
+                              },
+                              React.createElement('path', {
+                                d: 'M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z'
+                              })
+                            )
+                          )
+                        ),
+                        React.createElement('p', { className: 'text-gray-600 italic mb-4' }, `"${testimonial.quote}"`),
+                        React.createElement('p', { className: 'text-gray-800 font-semibold' }, testimonial.name)
+                      ]
+                    )
+                  )
+                )
+              ]
+            )
+          ),
+
+          // About Us Section
+          React.createElement(
+            'section',
+            { className: 'container mx-auto px-6 py-12' },
+            React.createElement(
+              'div',
+              { className: 'flex flex-col md:flex-row items-center' },
+              [
+                React.createElement(
+                  'div',
+                  { className: 'md:w-1/2' },
+                  [
+                    React.createElement('h3', { className: 'text-2xl font-bold text-gray-800 mb-4' }, 'About ElectroBid'),
+                    React.createElement(
+                      'p',
+                      { className: 'text-gray-600 mb-4' },
+                      'ElectroBid is your premier destination for high-quality electronics auctions. Founded with a passion for technology and fairness, we connect buyers with top-tier gadgets through a secure, transparent bidding process. Our mission is to make premium tech accessible to everyone.'
+                    ),
+                    React.createElement(
+                      'p',
+                      { className: 'text-gray-600 mb-6' },
+                      'Our team is dedicated to ensuring a seamless experience, from real-time updates to robust security. Join thousands of satisfied bidders today!'
+                    ),
+                    React.createElement(
+                      'button',
+                      {
+                        onClick: () => alert('Learn more about our story (placeholder)!'),
+                        className: 'btn-gradient text-white px-6 py-3 rounded-lg font-medium'
+                      },
+                      'Learn More'
+                    )
+                  ]
+                ),
+                React.createElement(
+                  'div',
+                  { className: 'md:w-1/2 mt-6 md:mt-0 md:pl-6' },
+                  React.createElement('img', {
+                    src: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80',
+                    alt: 'Our Team',
+                    className: 'w-full h-64 object-cover rounded-lg shadow-lg'
+                  })
+                )
+              ]
+            )
+          ),
+
+          // Other Features Section
+          React.createElement(
+            'section',
+            { className: 'bg-gradient-to-r from-blue-50 to-indigo-50 py-12' },
+            React.createElement(
+              'div',
+              { className: 'container mx-auto px-6' },
+              [
+                React.createElement('h3', { className: 'text-2xl font-bold text-gray-800 mb-6 text-center' }, 'Why Choose ElectroBid?'),
+                React.createElement(
+                  'div',
+                  { className: 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6' },
+                  [
+                    React.createElement(
+                      'div',
+                      { className: 'feature-card bg-white rounded-lg shadow-md p-6 text-center card-hover' },
+                      [
+                        React.createElement(
+                          'svg',
+                          { className: 'w-12 h-12 mx-auto mb-4 text-blue-600', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' },
+                          React.createElement('path', {
+                            strokeLinecap: 'round',
+                            strokeLinejoin: 'round',
+                            strokeWidth: '2',
+                            d: 'M12 11c0-1.104-.896-2-2-2s-2 .896-2 2 2 4 2 4m2-4c0-1.104.896-2 2-2s2 .896 2 2-2 4-2 4m-2-4V3m0 18v-3m6-6h3m-3 0h-3m-6 0H3m3 0h3'
+                          })
+                        ),
+                        React.createElement('h4', { className: 'text-lg font-semibold text-gray-800 mb-2' }, 'Secure Bidding'),
+                        React.createElement('p', { className: 'text-sm text-gray-600' }, 'Your data is protected with top-tier encryption.')
+                      ]
+                    ),
+                    React.createElement(
+                      'div',
+                      { className: 'feature-card bg-white rounded-lg shadow-md p-6 text-center card-hover' },
+                      [
+                        React.createElement(
+                          'svg',
+                          { className: 'w-12 h-12 mx-auto mb-4 text-blue-600', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' },
+                          React.createElement('path', {
+                            strokeLinecap: 'round',
+                            strokeLinejoin: 'round',
+                            strokeWidth: '2',
+                            d: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z'
+                          })
+                        ),
+                        React.createElement('h4', { className: 'text-lg font-semibold text-gray-800 mb-2' }, 'Real-Time Updates'),
+                        React.createElement('p', { className: 'text-sm text-gray-600' }, 'Stay in the loop with instant bid notifications.')
+                      ]
+                    ),
+                    React.createElement(
+                      'div',
+                      { className: 'feature-card bg-white rounded-lg shadow-md p-6 text-center card-hover' },
+                      [
+                        React.createElement(
+                          'svg',
+                          { className: 'w-12 h-12 mx-auto mb-4 text-blue-600', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' },
+                          React.createElement('path', {
+                            strokeLinecap: 'round',
+                            strokeLinejoin: 'round',
+                            strokeWidth: '2',
+                            d: 'M13 10V3L4 14h7v7l9-11h-7z'
+                          })
+                        ),
+                        React.createElement('h4', { className: 'text-lg font-semibold text-gray-800 mb-2' }, 'Auto-Bidding'),
+                        React.createElement('p', { className: 'text-sm text-gray-600' }, 'Set your max bid and let us do the work.')
+                      ]
+                    ),
+                    React.createElement(
+                      'div',
+                      { className: 'feature-card bg-white rounded-lg shadow-md p-6 text-center card-hover' },
+                      [
+                        React.createElement(
+                          'svg',
+                          { className: 'w-12 h-12 mx-auto mb-4 text-blue-600', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' },
+                          React.createElement('path', {
+                            strokeLinecap: 'round',
+                            strokeLinejoin: 'round',
+                            strokeWidth: '2',
+                            d: 'M7 7h10M7 11h10M7 15h10M4 4h16v16H4V4z'
+                          })
+                        ),
+                        React.createElement('h4', { className: 'text-lg font-semibold text-gray-800 mb-2' }, 'Wide Selection'),
+                        React.createElement('p', { className: 'text-sm text-gray-600' }, 'Explore a vast range of premium electronics.')
+                      ]
+                    )
+                  ]
+                )
+              ]
+            )
+          ),
+
+          // Tabs, Filters, Search, and Sort
+          React.createElement(
+            'div',
+            { className: 'container mx-auto px-6 mb-6' },
+            React.createElement(
+              'div',
+              { className: 'flex flex-col sm:flex-row sm:justify-between sm:items-center space-y-4 sm:space-y-0' },
+              [
+                React.createElement(
+                  'div',
+                  { className: 'flex flex-col sm:flex-row sm:space-x-4' },
+                  [
+                    React.createElement(
+                      'div',
+                      { className: 'flex space-x-4 mb-4 sm:mb-0' },
+                      [
+                        React.createElement(
+                          'button',
+                          {
+                            onClick: () => setActiveTab('active'),
+                            className: `px-6 py-2 rounded-lg font-medium ${activeTab === 'active' ? 'btn-gradient text-white' : 'bg-gray-200 text-gray-600'}`
+                          },
+                          'Active Auctions'
+                        ),
+                        React.createElement(
+                          'button',
+                          {
+                            onClick: () => setActiveTab('ended'),
+                            className: `px-6 py-2 rounded-lg font-medium ${activeTab === 'ended' ? 'btn-gradient text-white' : 'bg-gray-200 text-gray-600'}`
+                          },
+                          'Ended Auctions'
+                        )
+                      ]
+                    ),
+                    React.createElement('input', {
+                      type: 'text',
+                      placeholder: 'Search items...',
+                      value: searchTerm,
+                      onChange: (e) => setSearchTerm(e.target.value),
+                      className: 'p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-64'
+                    }),
+                    React.createElement(
+                      'select',
+                      {
+                        value: sortOption,
+                        onChange: (e) => setSortOption(e.target.value),
+                        className: 'p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-48'
+                      },
+                      [
+                        React.createElement('option', { value: 'default' }, 'Sort By: Default'),
+                        React.createElement('option', { value: 'bid' }, 'Current Bid (Low to High)'),
+                        React.createElement('option', { value: 'endTime' }, 'End Time (Soonest First)')
+                      ]
+                    )
+                  ]
+                ),
+                React.createElement(
+                  'select',
+                  {
+                    value: categoryFilter,
+                    onChange: (e) => setCategoryFilter(e.target.value),
+                    className: 'p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-48'
+                  },
+                  categories.map((cat) => React.createElement('option', { key: cat, value: cat }, cat))
+                )
+              ]
+            )
+          ),
+
+          // Auction Items
+          React.createElement(
+            'main',
+            { className: 'container mx-auto p-6 flex-grow' },
+            React.createElement(
+              'div',
+              { className: 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8' },
+              filteredItems.map((item) =>
+                React.createElement(
+                  'div',
+                  {
+                    key: item.id,
+                    id: `item-${item.id}`,
+                    className: `bg-white rounded-xl shadow-lg p-6 card-hover transition duration-300 ${item.status === 'ended' ? 'ended-card' : ''}`
+                  },
+                  [
+                    React.createElement('img', {
+                      src: item.image,
+                      alt: item.name,
+                      className: 'w-full h-64 object-cover rounded-lg mb-4'
+                    }),
+                    React.createElement('h3', { className: 'text-2xl font-semibold text-gray-800' }, item.name),
+                    React.createElement('p', { className: 'text-gray-500 mt-2 text-sm' }, item.description),
+                    React.createElement(
+                      'div',
+                      { className: 'mt-4 space-y-2' },
+                      [
+                        React.createElement(
+                          'p',
+                          { className: 'text-xl font-bold text-blue-600' },
+                          `Final Bid: $${item.currentBid.toFixed(2)}`
+                        ),
+                        React.createElement(
+                          'p',
+                          { className: 'text-sm text-gray-600' },
+                          `Starting Bid: $${item.startingBid.toFixed(2)} | Reserve: $${item.reservePrice.toFixed(2)}`
+                        ),
+                        item.status === 'active'
+                          ? React.createElement(
+                              'p',
+                              { className: 'text-sm text-gray-600' },
+                              ['Ends in: ', React.createElement(Timer, { endTime: item.endTime })]
+                            )
+                          : React.createElement(
+                              'p',
+                              { className: 'text-sm text-gray-600' },
+                              item.winner
+                                ? `Winner: ${item.winner}`
+                                : item.currentBid >= item.reservePrice
+                                ? 'Reserve Met'
+                                : 'Reserve Not Met'
+                            ),
+                        item.status === 'active'
+                          ? React.createElement(
+                              'div',
+                              { className: 'mt-4 space-y-4' },
+                              [
+                                React.createElement(
+                                  'div',
+                                  { className: 'flex items-center space-x-2' },
+                                  [
+                                    React.createElement('input', {
+                                      type: 'number',
+                                      value: bidAmount[item.id] || '',
+                                      onChange: (e) => setBidAmount({ ...bidAmount, [item.id]: e.target.value }),
+                                      placeholder: 'Manual bid',
+                                      className: 'w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500',
+                                      step: '0.01'
+                                    }),
+                                    React.createElement(
+                                      'button',
+                                      {
+                                        onClick: () => handleManualBid(item.id),
+                                        className: 'btn-gradient text-white px-6 py-3 rounded-lg font-medium'
+                                      },
+                                      'Bid'
+                                    )
+                                  ]
+                                ),
+                                React.createElement(
+                                  'div',
+                                  { className: 'flex items-center space-x-2' },
+                                  [
+                                    React.createElement('input', {
+                                      type: 'number',
+                                      value: autoBid[item.id] || '',
+                                      onChange: (e) => setAutoBid({ ...autoBid, [item.id]: e.target.value }),
+                                      placeholder: 'Max auto-bid',
+                                      className: 'w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500',
+                                      step: '0.01'
+                                    }),
+                                    React.createElement(
+                                      'button',
+                                      {
+                                        onClick: () => handleAutoBid(item.id),
+                                        className: 'btn-gradient text-white px-6 py-3 rounded-lg font-medium'
+                                      },
+                                      'Set Auto-Bid'
+                                    )
+                                  ]
+                                )
+                              ]
+                            )
+                          : item.currentBid < item.reservePrice &&
+                            item.status !== 'sold' &&
+                            React.createElement(
+                              'div',
+                              { className: 'mt-4' },
+                              [
+                                React.createElement(
+                                  'p',
+                                  { className: 'text-sm text-gray-600' },
+                                  `Buy Now Price: $${item.buyNowPrice.toFixed(2)}`
+                                ),
+                                React.createElement(
+                                  'button',
+                                  {
+                                    onClick: () => handleBuyNow(item.id),
+                                    className: 'w-full btn-gradient text-white px-6 py-3 rounded-lg font-medium mt-2'
+                                  },
+                                  'Buy Now'
+                                )
+                              ]
+                            ),
+                        React.createElement(
+                          'div',
+                          { className: 'mt-4' },
+                          [
+                            React.createElement(
+                              'h4',
+                              { className: 'text-sm font-semibold text-gray-700' },
+                              `Bid History (${item.bidHistory.length})`
+                            ),
+                            React.createElement(
+                              'ul',
+                              { className: 'text-sm text-gray-600 max-h-24 overflow-y-auto' },
+                              item.bidHistory.slice(-5).map((bid, idx) =>
+                                React.createElement(
+                                  'li',
+                                  { key: idx },
+                                  `${bid.username} bid $${bid.amount.toFixed(2)} at ${new Date(bid.time).toLocaleTimeString()}`
+                                )
+                              )
+                            )
+                          ]
+                        )
+                      ]
+                    )
+                  ]
+                )
+              )
+            )
+          ),
+
+          // Recently Ended Auctions Section
+          recentlyEndedItems.length > 0 &&
+            React.createElement(
+              'section',
+              { className: 'container mx-auto px-6 py-8' },
+              [
+                React.createElement('h3', { className: 'text-2xl font-bold text-gray-800 mb-4' }, 'Recently Ended Auctions'),
+                React.createElement(
+                  'div',
+                  { className: 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8' },
+                  recentlyEndedItems.map((item) =>
+                    React.createElement(
+                      'div',
+                      {
+                        key: item.id,
+                        className: 'bg-white rounded-lg shadow-md p-4 card-hover ended-card cursor-pointer',
+                        onClick: () => scrollToItem(item.id)
+                      },
+                      [
+                        React.createElement('img', {
+                          src: item.image,
+                          alt: item.name,
+                          className: 'w-full h-32 object-cover rounded-md mb-2'
+                        }),
+                        React.createElement('h4', { className: 'text-lg font-semibold text-gray-800 truncate' }, item.name),
+                        React.createElement(
+                          'p',
+                          { className: 'text-sm text-blue-600 font-bold' },
+                          `Final Bid: $${item.currentBid.toFixed(2)}`
+                        ),
+                        React.createElement(
+                          'p',
+                          { className: 'text-sm text-gray-600' },
+                          item.winner
+                            ? `Winner: ${item.winner}`
+                            : item.currentBid >= item.reservePrice
+                            ? 'Reserve Met'
+                            : 'Reserve Not Met'
+                        ),
+                        item.currentBid < item.reservePrice &&
+                          item.status !== 'sold' &&
+                          React.createElement(
+                            'button',
+                            {
+                              onClick: (e) => {
+                                e.stopPropagation();
+                                handleBuyNow(item.id);
+                              },
+                              className: 'mt-2 w-full btn-gradient text-white px-4 py-2 rounded-lg text-sm'
+                            },
+                            `Buy Now: $${item.buyNowPrice.toFixed(2)}`
+                          )
+                      ]
+                    )
+                  )
+                )
+              ]
+            ),
+
+          // Footer
+          React.createElement(
+            'footer',
+            { className: 'bg-gradient-to-r from-gray-800 to-gray-900 text-white py-12' },
+            React.createElement(
+              'div',
+              { className: 'container mx-auto px-6' },
+              [
+                React.createElement(
+                  'div',
+                  { className: 'grid grid-cols-1 md:grid-cols-4 gap-8' },
+                  [
+                    React.createElement(
+                      'div',
+                      null,
+                      [
+                        React.createElement('h3', { className: 'text-2xl font-extrabold mb-4' }, 'ElectroBid'),
+                        React.createElement(
+                          'p',
+                          { className: 'text-gray-300 text-sm' },
+                          'Your trusted platform for premium electronics auctions.'
+                        )
+                      ]
+                    ),
+                    React.createElement(
+                      'div',
+                      null,
+                      [
+                        React.createElement('h4', { className: 'text-lg font-semibold mb-4' }, 'About Us'),
+                        React.createElement(
+                          'ul',
+                          { className: 'space-y-2 text-gray-300 text-sm' },
+                          [
+                            React.createElement('li', null, React.createElement('a', { href: '#', className: 'hover:text-white' }, 'Our Story')),
+                            React.createElement('li', null, React.createElement('a', { href: '#', className: 'hover:text-white' }, 'How It Works')),
+                            React.createElement('li', null, React.createElement('a', { href: '#', className: 'hover:text-white' }, 'FAQ'))
+                          ]
+                        )
+                      ]
+                    ),
+                    React.createElement(
+                      'div',
+                      null,
+                      [
+                        React.createElement('h4', { className: 'text-lg font-semibold mb-4' }, 'Customer Service'),
+                        React.createElement(
+                          'ul',
+                          { className: 'space-y-2 text-gray-300 text-sm' },
+                          [
+                            React.createElement('li', null, React.createElement('a', { href: '#', className: 'hover:text-white' }, 'Contact Us')),
+                            React.createElement('li', null, React.createElement('a', { href: '#', className: 'hover:text-white' }, 'Terms of Service')),
+                            React.createElement('li', null, React.createElement('a', { href: '#', className: 'hover:text-white' }, 'Privacy Policy'))
+                          ]
+                        )
+                      ]
+                    ),
+                    React.createElement(
+                      'div',
+                      null,
+                      [
+                        React.createElement('h4', { className: 'text-lg font-semibold mb-4' }, 'Stay Connected'),
+                        React.createElement(
+                          'div',
+                          { className: 'mb-4' },
+                          [
+                            React.createElement('p', { className: 'text-gray-300 text-sm mb-2' }, 'Subscribe for updates:'),
+                            React.createElement(
+                              'div',
+                              { className: 'flex' },
+                              [
+                                React.createElement('input', {
+                                  type: 'email',
+                                  value: newsletterEmail,
+                                  onChange: (e) => setNewsletterEmail(e.target.value),
+                                  placeholder: 'Enter your email',
+                                  className: 'w-full p-2 text-gray-800 rounded-l-lg focus:outline-none'
+                                }),
+                                React.createElement(
+                                  'button',
+                                  {
+                                    onClick: handleNewsletterSubmit,
+                                    className: 'btn-gradient text-white px-4 py-2 rounded-r-lg'
+                                  },
+                                  'Subscribe'
+                                )
+                              ]
+                            )
+                          ]
+                        ),
+                        React.createElement(
+                          'div',
+                          null,
+                          [
+                            React.createElement('h5', { className: 'text-sm font-semibold mb-2' }, 'Follow Us'),
+                            React.createElement(
+                              'div',
+                              { className: 'flex space-x-4' },
+                              [
+                                React.createElement('a', { href: '#', className: 'text-gray-300 hover:text-white' }, 'Twitter'),
+                                React.createElement('a', { href: '#', className: 'text-gray-300 hover:text-white' }, 'Facebook'),
+                                React.createElement('a', { href: '#', className: 'text-gray-300 hover:text-white' }, 'Instagram')
+                              ]
+                            )
+                          ]
+                        )
+                      ]
+                    )
+                  ]
+                ),
+                React.createElement(
+                  'div',
+                  { className: 'mt-8 border-t border-gray-700 pt-6 text-center' },
+                  React.createElement('p', { className: 'text-sm text-gray-300' }, '© 2025 ElectroBid. All rights reserved.')
+                )
+              ]
+            )
+          )
+        ]
+      );
+    }
+
+    ReactDOM.render(React.createElement(App), document.getElementById('root'));
+  </script>
+</body>
+</html>
